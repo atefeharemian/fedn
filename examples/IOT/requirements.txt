@@ -1,0 +1,10 @@
+torch==1.13.1
+torchvision==0.14.1  # Updated to a version likely compatible with torch 1.13.1
+fire==0.3.1          # Kept as is, assuming specific version needed
+docker==6.1.1        # Kept as is
+numpy==1.22.4        # Good choice for compatibility
+scikit-learn==1.0.2  # Updated to a more recent version compatible with newer Python versions
+matplotlib           # Kept as is, will install the latest version
+torchmetrics
+ipykernel
+
