@@ -1,0 +1,317 @@
+#!./.IOT/bin/python
+import collections
+import os
+import docker
+import fire
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import DataLoader, TensorDataset, Subset
+import numpy as np
+from fedn.utils.helpers.helpers import get_helper, save_metadata, save_metrics
+
+HELPER_MODULE = "numpyhelper"
+helper = get_helper(HELPER_MODULE)
+
+NUM_CLASSES = 10
+
+
+def _get_data_path():
+    """For test automation using docker-compose."""
+    # Figure out FEDn client number from container name
+    client = docker.from_env()
+    container = client.containers.get(os.environ["HOSTNAME"])
+    number = container.name[-1]
+
+    # Return data path
+    return f"/var/data/clients/{number}/IOT_normal_base.pt"
+
+
+def compile_model():
+    """Compile the pytorch model.
+
+    :return: The compiled model.
+    :rtype: torch.nn.Module
+    """
+
+    class Net(nn.Module):
+        def __init__(self, noFtr):
+            super(Net, self).__init__()
+            self.layer1 = nn.Linear(noFtr, np.ceil(noFtr / 2).astype(int))
+            self.layer2 = nn.Linear(
+                np.ceil(noFtr / 2).astype(int), np.ceil(noFtr / 4).astype(int)
+            )
+            self.layer3 = nn.Linear(
+                np.ceil(noFtr / 4).astype(int), np.ceil(noFtr / 8).astype(int)
+            )
+            self.layer4 = nn.Linear(np.ceil(noFtr / 8).astype(int), 2)
+
+        def forward(self, x):
+            x = torch.relu(self.layer1(x))
+            x = torch.relu(self.layer2(x))
+            x = torch.relu(self.layer3(x))
+            x = torch.softmax(self.layer4(x), dim=1)
+            return x
+
+    return Net(5 * 7)  # Assuming 5 nodes and 7 features each
+
+
+def load_data(data_path, is_train=True):
+    """Load data from disk.
+
+    :param data_path: Path to data file.
+    :type data_path: str
+    :param is_train: Whether to load training or test data.
+    :type is_train: bool
+    :return: Tuple of data and labels.
+    :rtype: tuple
+    """
+    if data_path is None:
+        data = torch.load(_get_data_path())
+    else:
+        data = torch.load(data_path)
+
+    if is_train:
+        X = data["x_train"]
+        y = data["y_train"]
+    else:
+        X = data["x_test"]
+        y = data["y_test"]
+
+    return X, y
+
+
+def save_parameters(model, out_path):
+    """Save model paramters to file.
+
+    :param model: The model to serialize.
+    :type model: torch.nn.Module
+    :param out_path: The path to save to.
+    :type out_path: str
+    """
+    parameters_np = [val.cpu().numpy() for _, val in model.state_dict().items()]
+    helper.save(parameters_np, out_path)
+
+
+def load_parameters(model_path):
+    """Load model parameters from file and populate model.
+
+    param model_path: The path to load from.
+    :type model_path: str
+    :return: The loaded model.
+    :rtype: torch.nn.Module
+    """
+    model = compile_model()
+    parameters_np = helper.load(model_path)
+
+    params_dict = zip(model.state_dict().keys(), parameters_np)
+    state_dict = collections.OrderedDict(
+        {key: torch.tensor(x) for key, x in params_dict}
+    )
+    model.load_state_dict(state_dict, strict=True)
+    return model
+
+
+def init_seed(out_path="seed.npz"):
+    """Initialize seed model and save it to file.
+
+    :param out_path: The path to save the seed model to.
+    :type out_path: str
+    """
+    # Init and save
+    model = compile_model()
+    save_parameters(model, out_path)
+
+
+def train(
+    in_model_path,
+    out_model_path,
+    data_path=None,
+    batch_size=256,
+    epochs=50,
+    lr=0.001,
+    n_folds=16,
+):
+    """Complete a model update.
+
+    Load model parameters from in_model_path (managed by the FEDn client),
+    perform a model update, and write updated parameters
+    to out_model_path (picked up by the FEDn client).
+
+    :param in_model_path: The path to the input model.
+    :type in_model_path: str
+    :param out_model_path: The path to save the output model to.
+    :type out_model_path: str
+    :param data_path: The path to the data file.
+    :type data_path: str
+    :param batch_size: The batch size to use.
+    :type batch_size: int
+    :param epochs: The number of epochs to train.
+    :type epochs: int
+    :param lr: The learning rate to use.
+    :type lr: float
+    :param n_folds: The number of folds for cross-validation.
+    :type n_folds: int
+    """
+    # Load data
+    x_train, y_train = load_data(data_path)
+
+    # Load parameters and initialize model
+    model = load_parameters(in_model_path)
+
+    # Prepare the indices for K-Fold cross-validation
+    dataset_size = len(x_train)
+    indices = list(range(dataset_size))
+    fold_size = dataset_size // n_folds
+
+    # Create a TensorDataset from x_train and y_train
+    dataset = TensorDataset(x_train, y_train)
+
+    # Train
+    optimizer = optim.Adam(model.parameters(), lr=lr)
+    criterion = nn.CrossEntropyLoss()
+
+    for fold in range(n_folds):
+        # Split indices into train and validation
+        val_indices = indices[fold * fold_size : (fold + 1) * fold_size]
+        train_indices = [i for i in indices if i not in val_indices]
+
+        # Create data loaders
+        train_loader = DataLoader(Subset(dataset, train_indices), batch_size=batch_size)
+        val_loader = DataLoader(Subset(dataset, val_indices), batch_size=batch_size)
+
+        for e in range(epochs):  # epoch loop
+            model.train()
+            for b, (batch_x, batch_y) in enumerate(train_loader):  # batch loop
+                # Train on batch
+                optimizer.zero_grad()
+                outputs = model(batch_x)
+                loss = criterion(outputs, batch_y)
+                loss.backward()
+                # print hello work
+                optimizer.step()
+                # Log
+                if b % 100 == 0:
+                    print(
+                        f"Fold {fold}/{n_folds-1} | Epoch {e}/{epochs-1} | Batch: {b}/{len(train_loader)-1} | Loss: {loss.item()}"
+                    )
+
+            model.eval()
+            total, correct = 0, 0
+            with torch.no_grad():
+                for b, (batch_x, batch_y) in enumerate(val_loader):  # validation loop
+                    outputs = model(batch_x)
+                    _, predicted = torch.max(outputs.data, 1)
+                    total += batch_y.size(0)
+                    correct += (predicted == batch_y).sum().item()
+                    loss = criterion(outputs, batch_y)
+                    # Log
+                    if b % 100 == 0:
+                        print(
+                            f"Fold {fold}/{n_folds-1} | Epoch {e+1}/{epochs} | Validation Batch: {b}/{len(val_loader)-1} | Loss: {loss.item()}"
+                        )
+            print(f"Validation Accuracy: {100 * correct / total}%")
+
+    # Metadata needed for aggregation server side
+    metadata = {
+        # num_examples are mandatory
+        "num_examples": len(x_train),
+        "batch_size": batch_size,
+        "epochs": epochs,
+        "lr": lr,
+        "n_folds": n_folds,
+    }
+
+    # Save JSON metadata file (mandatory)
+    save_metadata(metadata, out_model_path)
+
+    # Save model update (mandatory)
+    save_parameters(model, out_model_path)
+
+
+def validate(in_model_path, out_json_path, data_path=None):
+    """Validate model.
+
+    :param in_model_path: The path to the input model.
+    :type in_model_path: str
+    :param out_json_path: The path to save the output JSON to.
+    :type out_json_path: str
+    :param data_path: The path to the data file.
+    :type data_path: str
+    """
+    # Load data
+    x_test, y_test = load_data(data_path, is_train=False)
+
+    # Load model
+    model = load_parameters(in_model_path)
+    model.eval()
+
+    precision_list = []
+    recall_list = []
+    f1_list = []
+
+    # Evaluate
+    criterion = nn.CrossEntropyLoss()
+    with torch.no_grad():
+        test_out = model(x_test)
+        _, predicted = torch.max(test_out.data, 1)
+        correct = (predicted == y_test).sum().item()
+        test_loss = criterion(test_out, y_test)
+        test_accuracy = torch.sum(torch.argmax(test_out, dim=1) == y_test) / len(
+            test_out
+        )
+        precision, recall, f1 = precision_recall_f1(y_test, predicted)
+        precision_list.append(precision)
+        recall_list.append(recall)
+        f1_list.append(f1)
+    total = y_test.size(0)
+    accuracy = 100 * correct / total
+    avg_precision = np.mean(precision_list)
+    avg_recall = np.mean(recall_list)
+    avg_f1 = np.mean(f1_list)
+
+    print(f"Accuracy: {accuracy}%")
+    print(f"Precision: {avg_precision}")
+    print(f"Recall: {avg_recall}")
+    print(f"F1 Score: {avg_f1}")
+    print(f"Evaluation completed.\n")
+
+    # JSON schema
+    report = {
+        "test_loss": test_loss.item(),
+        "test_accuracy": test_accuracy.item(),
+        "precision": avg_precision,
+        "recall": avg_recall,
+        "f1": avg_f1,
+        "accuracy": accuracy,
+    }
+
+    # Save JSON
+    save_metrics(report, out_json_path)
+
+
+# Custom metrics
+def precision_recall_f1(y_true, y_pred, average="macro"):
+    epsilon = 1e-7
+    y_true = y_true.cpu()
+    y_pred = y_pred.cpu()
+
+    true_positives = ((y_pred == y_true) & (y_true == 1)).sum()
+    predicted_positives = (y_pred == 1).sum()
+    possible_positives = (y_true == 1).sum()
+
+    precision = true_positives / (predicted_positives + epsilon)
+    recall = true_positives / (possible_positives + epsilon)
+    f1 = 2 * (precision * recall) / (precision + recall + epsilon)
+
+    return precision.item(), recall.item(), f1.item()
+
+
+if __name__ == "__main__":
+    fire.Fire(
+        {
+            "init_seed": init_seed,
+            "train": train,
+            "validate": validate,
+        }
+    )
