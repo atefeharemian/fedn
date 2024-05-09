@@ -45,7 +45,28 @@ def splitset(dataset, parts):
     return result
 
 
-def split(out_dir="bin/data", n_splits=2):
+# vertically split the data into n_splits
+def splitset_v(dataset, parts, label=False):
+    print(f"dataset shape: {dataset.shape}")
+    n = dataset.shape[1]
+    local_n = floor(n / parts)
+    # calculate leftover data points
+    leftover = n % parts
+
+    lengths = [local_n + 1 if i < leftover else local_n for i in range(parts)]
+
+    # result = torch.utils.data.random_split(dataset, lengths. torch.Generator().manual_seed(42))
+    result = []
+
+    start = 0
+    for length in lengths:
+        result.append(dataset[:, start : start + length])
+        start += length
+
+    return result
+
+
+def split(out_dir="bin/data", n_splits=5):
     # Make dir
     if not os.path.exists(f"{out_dir}/clients"):
         os.mkdir(f"{out_dir}/clients")
@@ -84,12 +105,25 @@ def split(out_dir="bin/data", n_splits=2):
     # shuffle the train data
 
     # split each of train and test data into n_splits
+    # data = {
+    #     "x_train": splitset(train_data.data, n_splits),
+    #     "y_train": splitset(train_data.targets, n_splits),
+    #     "x_test": splitset(test_data.data, n_splits),
+    #     "y_test": splitset(test_data.targets, n_splits),
+    # }
+
+    # split each of train and test data into n_splits vertically
     data = {
-        "x_train": splitset(train_data.data, n_splits),
-        "y_train": splitset(train_data.targets, n_splits),
-        "x_test": splitset(test_data.data, n_splits),
-        "y_test": splitset(test_data.targets, n_splits),
+        "x_train": splitset_v(train_data.data, n_splits),
+        "y_train": train_data.targets,
+        "x_test": splitset_v(test_data.data, n_splits),
+        "y_test": test_data.targets,
     }
+
+    print(f'x_train[0]: {data["x_train"][0].shape}')
+    print(f'y_train[0]: {data["y_train"].shape}')
+    print(f'x_test[4]: {data["x_test"][4].shape}')
+    print(f'y_test[4]: {data["y_test"].shape}')
 
     # Make splits
     for i in range(n_splits):
@@ -99,12 +133,17 @@ def split(out_dir="bin/data", n_splits=2):
         torch.save(
             {
                 "x_train": data["x_train"][i],
-                "y_train": data["y_train"][i],
                 "x_test": data["x_test"][i],
-                "y_test": data["y_test"][i],
             },
             f"{subdir}/IOT_normal_base.pt",
         )
+    torch.save(
+        {
+            "y_train": data["y_train"][0],
+            "y_test": data["y_test"][0],
+        },
+        f"../../fedn/combiner_data/IOT_normal_base_labels.pt",
+    )
 
 
 if __name__ == "__main__":

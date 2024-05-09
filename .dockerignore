@@ -8,5 +8,4 @@ docs/*
 **/.mnist-keras
 **/.mnist-pytorch
 **/*.npz
-**/data
 **/*.tgz
