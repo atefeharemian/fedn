@@ -19,7 +19,7 @@ HELPER_MODULE = "numpyhelper"
 helper = get_helper(HELPER_MODULE)
 
 NUM_CLASSES = 10
-
+CLIENT_ID = None
 
 def train(
     in_model_path,
@@ -28,7 +28,6 @@ def train(
     batch_size=256,
     epochs=50,
     lr=0.001,
-    n_folds=16,
 ):
     """Complete a model update.
 
@@ -55,76 +54,49 @@ def train(
     torch.manual_seed(0)
 
     # Load data
-    x_train, y_train = load_data(data_path)
+    x_train = load_data(data_path)
 
     # Load parameters and initialize model
     model = load_parameters(in_model_path)
 
     # Prepare the indices for K-Fold cross-validation
     dataset_size = len(x_train)
-    indices = list(range(dataset_size))
-    fold_size = dataset_size // n_folds
 
-    # Create a TensorDataset from x_train and y_train
-    dataset = TensorDataset(x_train, y_train)
+    # Create a TensorDataset from x_train
+    dataset = TensorDataset(x_train)
+
+    # Create data loader
+    train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
 
     # Train
     optimizer = optim.Adam(model.parameters(), lr=lr)
-    criterion = nn.CrossEntropyLoss()
+    # criterion = nn.CrossEntropyLoss()
 
-    for fold in range(n_folds):
-        # Split indices into train and validation
-        val_indices = indices[fold * fold_size : (fold + 1) * fold_size]
-        train_indices = [i for i in indices if i not in val_indices]
+    for e in range(epochs):  # epoch loop
+        model.train()
+        for b, (batch_x,) in enumerate(train_loader):  # batch loop
+            # Calculate embeddings and send to combiner
+            embeddings = model(batch_x)
+            gradients = process_embeddings_by_combiner(embeddings)
+            # the corresponding gradients for this client based on CLIENT_ID
+            gradients = gradients[CLIENT_ID]
+            # Update model parameters based on received gradients
+            for param, grad in zip(model.parameters(), gradients):
+                param.grad = grad
 
-        # Create data loaders
-        train_loader = DataLoader(
-            Subset(dataset, train_indices), batch_size=batch_size, shuffle=False
-        )
-        val_loader = DataLoader(
-            Subset(dataset, val_indices), batch_size=batch_size, shuffle=False
-        )
+            optimizer.step()
 
-        for e in range(epochs):  # epoch loop
-            model.train()
-            for b, (batch_x, batch_y) in enumerate(train_loader):  # batch loop
-                # Train on batch
-                optimizer.zero_grad()
-                outputs = model(batch_x)
-                loss = criterion(outputs, batch_y)
-                loss.backward()
-                # print hello work
-                optimizer.step()
-                # Log
-                if b % 100 == 0:
-                    print(
-                        f"Fold {fold}/{n_folds-1} | Epoch {e}/{epochs-1} | Batch: {b}/{len(train_loader)-1} | Loss: {loss.item()}"
-                    )
-
-            model.eval()
-            total, correct = 0, 0
-            with torch.no_grad():
-                for b, (batch_x, batch_y) in enumerate(val_loader):  # validation loop
-                    outputs = model(batch_x)
-                    _, predicted = torch.max(outputs.data, 1)
-                    total += batch_y.size(0)
-                    correct += (predicted == batch_y).sum().item()
-                    loss = criterion(outputs, batch_y)
-                    # Log
-                    if b % 100 == 0:
-                        print(
-                            f"Fold {fold}/{n_folds-1} | Epoch {e+1}/{epochs} | Validation Batch: {b}/{len(val_loader)-1} | Loss: {loss.item()}"
-                        )
-            print(f"Validation Accuracy: {100 * correct / total}%")
+            # Log
+            if b % 100 == 0:
+                print(f"Epoch {e}/{epochs-1} | Batch: {b}/{len(train_loader)-1}")
 
     # Metadata needed for aggregation server side
     metadata = {
         # num_examples are mandatory
-        "num_examples": len(x_train),
+        "num_examples": dataset_size,
         "batch_size": batch_size,
         "epochs": epochs,
         "lr": lr,
-        "n_folds": n_folds,
     }
 
     # Save JSON metadata file (mandatory)
@@ -132,6 +104,15 @@ def train(
 
     # Save model update (mandatory)
     save_parameters(model, out_model_path)
+
+def process_embeddings_by_combiner(embeddings):
+    """Process embeddings by combiner.
+
+    :param embeddings: The embeddings to process.
+    :type embeddings: torch.Tensor
+    """
+    pass
+
 
 if __name__ == "__main__":
     train(sys.argv[1], sys.argv[2])

@@ -7,7 +7,7 @@ x-env:
   &defaults
   GET_HOSTS_FROM: dns
   FEDN_PACKAGE_EXTRACT_DIR: package
-  FEDN_NUM_DATA_SPLITS: 4
+  FEDN_NUM_DATA_SPLITS: 5
 
 services:
 
@@ -63,3 +63,15 @@ services:
       - ${HOST_REPO_DIR:-.}/fedn:/app/fedn
       - $PWD/data/:/app/package/data
 
+  client5:
+    extends:
+      file: ${HOST_REPO_DIR:-.}/docker-compose.yaml
+      service: client
+    environment:
+      <<: *defaults
+      FEDN_DATA_PATH: /app/package/data/clients/5/IOT_normal_base.pt
+    deploy:
+      replicas: 1
+    volumes:
+      - ${HOST_REPO_DIR:-.}/fedn:/app/fedn
+      - $PWD/data/:/app/package/data

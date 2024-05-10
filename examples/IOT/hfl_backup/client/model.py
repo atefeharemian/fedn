@@ -9,30 +9,6 @@ from fedn.utils.helpers.helpers import get_helper, save_metadata, save_metrics
 HELPER_MODULE = "numpyhelper"
 helper = get_helper(HELPER_MODULE)
 
-# class ClientModel(nn.Module):
-#     def __init__(self, noFtr):
-#         super(ClientModel, self).__init__()
-#         self.layer1 = nn.Linear(noFtr, np.ceil(noFtr / 2).astype(int))
-#         self.layer2 = nn.Linear(
-#             np.ceil(noFtr / 2).astype(int), 7  # output embeddings of size 7
-#         )
-
-#     def forward(self, x):
-#         x = torch.relu(self.layer1(x))
-#         embeddings = torch.relu(self.layer2(x))
-#         return embeddings
-# class CombinerModel(nn.Module):
-#     def __init__(self, noFtr):
-#         super(CombinerModel, self).__init__()
-#         self.layer3 = nn.Linear(noFtr, np.ceil(noFtr / 2).astype(int))
-#         self.layer4 = nn.Linear(
-#             np.ceil(noFtr / 2).astype(int), 2  # output size of 2
-#         )
-        
-#     def forward(self, x):
-#         x = torch.relu(self.layer3(x))
-#         x = torch.softmax(self.layer4(x), dim=1)
-#         return x
 
 def compile_model():
     """Compile the pytorch model.
@@ -41,20 +17,26 @@ def compile_model():
     :rtype: torch.nn.Module
     """
 
-    class ClientModel(nn.Module):
+    class Net(nn.Module):
         def __init__(self, noFtr):
-            super(ClientModel, self).__init__()
+            super(Net, self).__init__()
             self.layer1 = nn.Linear(noFtr, np.ceil(noFtr / 2).astype(int))
             self.layer2 = nn.Linear(
-                np.ceil(noFtr / 2).astype(int), 7  # output embeddings of size 7
+                np.ceil(noFtr / 2).astype(int), np.ceil(noFtr / 4).astype(int)
             )
+            self.layer3 = nn.Linear(
+                np.ceil(noFtr / 4).astype(int), np.ceil(noFtr / 8).astype(int)
+            )
+            self.layer4 = nn.Linear(np.ceil(noFtr / 8).astype(int), 2)
 
         def forward(self, x):
             x = torch.relu(self.layer1(x))
-            embeddings = torch.relu(self.layer2(x))
-            return embeddings
+            x = torch.relu(self.layer2(x))
+            x = torch.relu(self.layer3(x))
+            x = torch.softmax(self.layer4(x), dim=1)
+            return x
 
-    return ClientModel(7)  # Assuming 7 features for each client
+    return Net(5 * 7)  # Assuming 5 nodes and 7 features each
 
 
 def save_parameters(model, out_path):

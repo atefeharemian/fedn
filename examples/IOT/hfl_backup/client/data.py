@@ -73,19 +73,18 @@ def load_data(data_path, is_train=True):
     :rtype: tuple
     """
     if data_path is None:
-        data = torch.load(_get_data_path())
-    else:
-        data = torch.load(data_path)
+        data_path = os.environ.get("FEDN_DATA_PATH", abs_path+'/data/clients/1/IOT_normal_base.pt')
+
+    data = torch.load(data_path)
 
     if is_train:
         X = data["x_train"]
-        # y = data["y_train"]
+        y = data["y_train"]
     else:
         X = data["x_test"]
-        # y = data["y_test"]
+        y = data["y_test"]
 
-    # return X, y
-    return X
+    return X, y
 
 
 def process_to_tensors(train_data, test_data):
@@ -124,26 +123,6 @@ def splitset(dataset, parts):
 
     return result
 
-
-# vertically split the data into n_splits
-def splitset_v(dataset, parts, label=False):
-    print(f"dataset shape: {dataset.shape}")
-    n = dataset.shape[1]
-    local_n = floor(n / parts)
-    # calculate leftover data points
-    leftover = n % parts
-
-    lengths = [local_n + 1 if i < leftover else local_n for i in range(parts)]
-
-    # result = torch.utils.data.random_split(dataset, lengths. torch.Generator().manual_seed(42))
-    result = []
-
-    start = 0
-    for length in lengths:
-        result.append(dataset[:, start : start + length])
-        start += length
-
-    return result
 
 def split(out_dir="data", n_splits=2):
 
@@ -187,39 +166,26 @@ def split(out_dir="data", n_splits=2):
     # shuffle the train data
 
     # split each of train and test data into n_splits
-    # data = {
-    #     "x_train": splitset(train_data.data, n_splits),
-    #     "y_train": splitset(train_data.targets, n_splits),
-    #     "x_test": splitset(test_data.data, n_splits),
-    #     "y_test": splitset(test_data.targets, n_splits),
-    # }
     data = {
-        "x_train": splitset_v(train_data.data, n_splits),
-        "y_train": train_data.targets,
-        "x_test": splitset_v(test_data.data, n_splits),
-        "y_test": test_data.targets,
+        "x_train": splitset(train_data.data, n_splits),
+        "y_train": splitset(train_data.targets, n_splits),
+        "x_test": splitset(test_data.data, n_splits),
+        "y_test": splitset(test_data.targets, n_splits),
     }
 
     # Make splits
     for i in range(n_splits):
         subdir = f"{out_dir}/clients/{str(i+1)}"
-        labels_dir = f"{out_dir}/clients/{str(i+1)}/labels"
         if not os.path.exists(subdir):
             os.mkdir(subdir)
-            os.mkdir(labels_dir)
         torch.save(
             {
                 "x_train": data["x_train"][i],
+                "y_train": data["y_train"][i],
                 "x_test": data["x_test"][i],
+                "y_test": data["y_test"][i],
             },
             f"{subdir}/IOT_normal_base.pt",
-        )
-        torch.save(
-            {
-                "y_train": data["y_train"][0],
-                "y_test": data["y_test"][0],
-            },
-            f"{labels_dir}/IOT_normal_base_labels.pt",
         )
 
 
