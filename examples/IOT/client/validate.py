@@ -83,20 +83,58 @@ def validate(in_model_path, out_json_path, data_path=None):
 
 
 # Custom metrics
+import torch
+
 def precision_recall_f1(y_true, y_pred, average="macro"):
     epsilon = 1e-7
+    
     y_true = y_true.cpu()
     y_pred = y_pred.cpu()
+    
+    unique_labels = torch.unique(y_true)
+    precisions = []
+    recalls = []
+    f1s = []
+    
+    for label in unique_labels:
+        true_positives = ((y_pred == label) & (y_true == label)).sum().item()
+        predicted_positives = (y_pred == label).sum().item()
+        possible_positives = (y_true == label).sum().item()
+        
+        precision = true_positives / (predicted_positives + epsilon)
+        recall = true_positives / (possible_positives + epsilon)
+        f1 = 2 * (precision * recall) / (precision + recall + epsilon)
+        
+        precisions.append(precision)
+        recalls.append(recall)
+        f1s.append(f1)
+    
+    if average == "macro":
+        precision = sum(precisions) / len(unique_labels)
+        recall = sum(recalls) / len(unique_labels)
+        f1 = sum(f1s) / len(unique_labels)
+    elif average == "micro":
+        precision = sum(precisions) / len(unique_labels)
+        recall = sum(recalls) / len(unique_labels)
+        f1 = sum(f1s) / len(unique_labels)
+    else:
+        raise ValueError("Unsupported average type")
+    
+    return precision, recall, f1
+# def precision_recall_f1(y_true, y_pred, average="macro"):
+#     epsilon = 1e-7
+#     y_true = y_true.cpu()
+#     y_pred = y_pred.cpu()
 
-    true_positives = ((y_pred == y_true) & (y_true == 1)).sum()
-    predicted_positives = (y_pred == 1).sum()
-    possible_positives = (y_true == 1).sum()
+#     true_positives = ((y_pred == y_true) & (y_true == 1)).sum()
+#     predicted_positives = (y_pred == 1).sum()
+#     possible_positives = (y_true == 1).sum()
 
-    precision = true_positives / (predicted_positives + epsilon)
-    recall = true_positives / (possible_positives + epsilon)
-    f1 = 2 * (precision * recall) / (precision + recall + epsilon)
+#     precision = true_positives / (predicted_positives + epsilon)
+#     recall = true_positives / (possible_positives + epsilon)
+#     f1 = 2 * (precision * recall) / (precision + recall + epsilon)
 
-    return precision.item(), recall.item(), f1.item()
+#     return precision.item(), recall.item(), f1.item()
 
 
 if __name__ == "__main__":
