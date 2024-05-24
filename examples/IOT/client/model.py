@@ -6,6 +6,8 @@ from torch.utils.data import DataLoader, TensorDataset, Subset
 import numpy as np
 from fedn.utils.helpers.helpers import get_helper, save_metadata, save_metrics
 
+from fedn.common.log_config import logger
+
 HELPER_MODULE = "numpyhelper"
 helper = get_helper(HELPER_MODULE)
 
@@ -87,6 +89,57 @@ def load_parameters(model_path):
     model.load_state_dict(state_dict, strict=True)
     return model
 
+def save_embeddings(all_batch_embeddings, path=None):
+  """ Serialize embeddings to file. The serialized embeddings must be a single binary object.
+
+    :param all_batch_embeddings: A list of lists, where each inner list contains embeddings for a batch within an epoch.
+    :param path: Path to file.
+    :return: Path to file.
+  """
+
+  # Create a dictionary to store embeddings by epoch for better organization
+  epoch_embeddings = {i: [] for i in range(len(all_batch_embeddings))}
+  for epoch_idx, batch_embeddings in enumerate(all_batch_embeddings):
+    for batch_embedding in batch_embeddings:
+      epoch_embeddings[epoch_idx].append(batch_embedding)
+
+  # Save embeddings using np.savez_compressed for efficiency
+  np.savez_compressed(path, **epoch_embeddings)
+
+  print(f"Embeddings saved to compressed archive: {path}")
+  logger.info(f"Embeddings saved to compressed archive: {path}")
+
+  return path
+
+def load_embeddings(path):
+    """
+    Load serialized embeddings from a binary object file.
+
+    :param path: Path to the compressed archive file.
+    :return: A list of lists, where each inner list contains embeddings for a batch within an epoch.
+    """
+    # Load the compressed archive
+    compressed_archive = np.load(path, allow_pickle=True)
+
+    # Extract the embeddings from the archive
+    all_batch_embeddings = []
+    for epoch_idx in sorted(compressed_archive.keys()):
+        epoch_embeddings = compressed_archive[epoch_idx]
+        all_batch_embeddings.append(epoch_embeddings)
+
+    print(f"Embeddings loaded from compressed archive: {path}")
+    logger.info(f"Embeddings loaded from compressed archive: {path}")
+
+    return all_batch_embeddings
+
+def get_tmp_path():
+    """ Return a temporary output path compatible with save_model, load_model.
+
+    :return: Path to file.
+    """
+    fd, path = tempfile.mkstemp(suffix='.npz')
+    os.close(fd)
+    return path
 
 def init_seed(out_path="seed.npz"):
     """Initialize seed model and save it to file.
