@@ -26,7 +26,7 @@ def train(
     out_model_path,
     data_path=None,
     batch_size=256,
-    epochs=50,
+    epochs=10,
     lr=0.001,
     n_folds=16,
 ):
