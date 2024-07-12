@@ -25,9 +25,10 @@ def train(
     in_model_path,
     out_model_path,
     data_path=None,
-    batch_size=256,
+    batch_size=128,
     epochs=10,
-    lr=0.001,
+    #lr=0.001,
+    lr=0.0001,
     n_folds=16,
 ):
     """Complete a model update.
