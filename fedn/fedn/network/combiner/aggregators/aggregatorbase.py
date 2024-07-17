@@ -34,7 +34,7 @@ class AggregatorBase(ABC):
         self.model_updates = queue.Queue()
 
     @abstractmethod
-    def combine_models(self, nr_expected_models=None, nr_required_models=1, helper=None, timeout=180, delete_models=True):
+    def combine_models(self, nr_expected_models=None, nr_required_models=1, helper=None, timeout=180, delete_models=False): # [FEDVFL] temporarily set delete_models default value to False
         """Routine for combining model updates. Implemented in subclass.
 
         :param nr_expected_models: Number of expected models. If None, wait for all models.

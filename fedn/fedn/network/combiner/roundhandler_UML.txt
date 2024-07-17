@@ -1,0 +1,29 @@
+@startuml
+class ModelUpdateError {
+        __init__()
+}
+class RoundHandler {
+    set_aggregator()
+    push_round_config()
+    load_model_update()
+    load_model_update_str()
+    waitforit()
+    _training_round()
+    _validation_round()
+    stage_model()
+    _assign_round_clients()
+    _check_nr_round_clients()
+    execute_validation_round()
+    _vfl_validation_round()
+    execute_vfl_validation_round()
+    execute_training_round()
+    run()
+        round_configs
+    storage
+    server
+    modelservice
+    aggregator
+    __init__()
+}
+Exception <|-- ModelUpdateError
+@enduml

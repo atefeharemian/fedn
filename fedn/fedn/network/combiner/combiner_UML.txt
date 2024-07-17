@@ -1,0 +1,46 @@
+@startuml
+class Role {
+    role_to_proto_role()
+        __init__()
+}
+class Combiner {
+    __whoami()
+    request_model_update()
+    request_model_validation()
+    get_active_trainers()
+    get_active_validators()
+    nr_active_trainers()
+    __join_client()
+    _subscribe_client_to_queue()
+    __get_queue()
+    _list_subscribed_clients()
+    _list_active_clients()
+    _deamon_thread_client_status()
+    _put_request_to_client_queue()
+    _send_status()
+    _flush_model_update_queue()
+    Start()
+    SetAggregator()
+    FlushAggregationQueue()
+    Stop()
+    SendStatus()
+    ListActiveClients()
+    AcceptingClients()
+    SendHeartbeat()
+    TaskStream()
+    SendModelUpdate()
+    register_model_validation()
+    SendModelValidation()
+    run()
+        modelservice
+    id
+    role
+    max_clients
+    repository
+    statestore
+    server
+    round_handler
+    __init__()
+}
+Enum <|-- Role
+@enduml

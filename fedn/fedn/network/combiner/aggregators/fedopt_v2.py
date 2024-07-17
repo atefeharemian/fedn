@@ -39,7 +39,7 @@ class Aggregator(AggregatorBase):
         self.v = None
         self.m = None
 
-    def combine_models(self, helper=None, delete_models=True, parameters=None):
+    def combine_models(self, helper=None, delete_models=False, parameters=None):
         """Compute pseudo gradients using model updates in the queue.
 
         :param helper: An instance of :class: `fedn.utils.helpers.helpers.HelperBase`, ML framework specific helper, defaults to None

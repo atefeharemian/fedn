@@ -74,11 +74,11 @@ class TempModelStorage(ModelStorage):
     def delete(self, model_id):
 
         try:
-            os.remove(os.path.join(self.default_dir, str(model_id)))
-            logger.info("TEMPMODELSTORAGE: Deleted model with id: {}".format(model_id))
+            # os.remove(os.path.join(self.default_dir, str(model_id)))
+            logger.info("TEMPMODELSTORAGE: Skipping Deletion of model with id: {}".format(model_id))
             # Delete id from metadata and models dict
-            del self.models_metadata[model_id]
-            del self.models[model_id]
+            # del self.models_metadata[model_id]
+            # del self.models[model_id]
         except FileNotFoundError:
             logger.error("Could not delete model from disk. File not found!")
             return False
@@ -90,14 +90,14 @@ class TempModelStorage(ModelStorage):
         ids_pop = []
         for model_id in self.models.keys():
             try:
-                os.remove(os.path.join(self.default_dir, str(model_id)))
-                logger.info("TEMPMODELSTORAGE: Deleted model with id: {}".format(model_id))
+                # os.remove(os.path.join(self.default_dir, str(model_id)))
+                logger.info("TEMPMODELSTORAGE: Skipping Deletion of model with id: {}".format(model_id))
                 # Add id to list of ids to pop/delete from metadata and models dict
-                ids_pop.append(model_id)
+                # ids_pop.append(model_id)
             except FileNotFoundError:
                 logger.error("TEMPMODELSTORAGE: Could not delete model {} from disk. File not found!".format(model_id))
         # Remove id from metadata and models dict
-        for model_id in ids_pop:
-            del self.models_metadata[model_id]
-            del self.models[model_id]
+        # for model_id in ids_pop:
+        #     del self.models_metadata[model_id]
+        #     del self.models[model_id]
         return True

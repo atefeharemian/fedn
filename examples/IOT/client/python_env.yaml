@@ -2,11 +2,11 @@ name: IOT
 build_dependencies:
   - pip
   - setuptools
-  - wheel==0.37.1
+  - wheel
 dependencies:
   # - torch==2.2.1
   # - torchvision==0.17.1
-  - fedn==0.9.0
+  - fedn==0.9.2
   - torch==1.13.1
   - torchvision==0.14.1  # Updated to a version likely compatible with torch 1.13.1
   - fire==0.3.1          # Kept as is, assuming specific version needed

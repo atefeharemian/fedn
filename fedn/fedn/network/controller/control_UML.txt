@@ -1,0 +1,40 @@
+@startuml
+class UnsupportedStorageBackend {
+        message
+    __init__()
+}
+class MisconfiguredStorageBackend {
+        message
+    __init__()
+}
+class NoModelException {
+        message
+    __init__()
+}
+class CombinersNotDoneException {
+        message
+    __init__()
+}
+class Control {
+    session()
+    round()
+    do_if_round_times_out()
+    combiners_done()
+    check_combiners_done_reporting()
+    reduce()
+    infer_instruct()
+    inference_round()
+        _state
+    _state
+    _state
+    __state
+    __state
+    __state
+    __init__()
+}
+Exception <|-- UnsupportedStorageBackend
+Exception <|-- MisconfiguredStorageBackend
+Exception <|-- NoModelException
+Exception <|-- CombinersNotDoneException
+ControlBase <|-- Control
+@enduml

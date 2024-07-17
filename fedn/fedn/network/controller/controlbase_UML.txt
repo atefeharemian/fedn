@@ -1,0 +1,50 @@
+@startuml
+class UnsupportedStorageBackend {
+        __init__()
+}
+class MisconfiguredStorageBackend {
+        __init__()
+}
+class MisconfiguredHelper {
+        __init__()
+}
+class ControlBase {
+    session()
+    round()
+    reduce()
+    get_helper()
+    get_state()
+    idle()
+    get_model_info()
+    get_events()
+    get_latest_round_id()
+    get_latest_round()
+    get_compute_package_name()
+    set_compute_package()
+    get_compute_package()
+    create_session()
+    set_session_status()
+    create_round()
+    set_round_data()
+    set_round_status()
+    set_round_config()
+    request_model_updates()
+    commit()
+    get_combiner()
+    get_participating_combiners()
+    evaluate_round_participation_policy()
+    evaluate_round_start_policy()
+    evaluate_round_validity_policy()
+    state()
+        _state
+    statestore
+    network
+    model_repository
+    _state
+    __init__()
+}
+Exception <|-- UnsupportedStorageBackend
+Exception <|-- MisconfiguredStorageBackend
+Exception <|-- MisconfiguredHelper
+ABC <|-- ControlBase
+@enduml

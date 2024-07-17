@@ -299,7 +299,7 @@ class Control(ControlBase):
 
             try:
                 tic = time.time()
-                data = self.model_repository.get_model(model_id)
+                data = self.model_repository.get_model(model_id) # [FEDVFL] TODO: revise for VFL
                 meta['time_fetch_model'] += (time.time() - tic)
             except Exception as e:
                 logger.error("Failed to fetch model from model repository {}: {}".format(name, e))
@@ -312,7 +312,7 @@ class Control(ControlBase):
                     model_next = load_model_from_BytesIO(data, helper)
                     meta["time_load_model"] += time.time() - tic
                     tic = time.time()
-                    model = helper.increment_average(model, model_next, 1.0, i)
+                    model = helper.increment_average(model, model_next, 1.0, i) # [FEDVFL] TODO: revise for VFL
                     meta["time_aggregate_model"] += time.time() - tic
                 except Exception:
                     tic = time.time()

@@ -7,7 +7,9 @@ import uuid
 from fedn.common.log_config import logger
 from fedn.network.combiner.aggregators.aggregatorbase import get_aggregator
 from fedn.network.combiner.modelservice import (load_model_from_BytesIO,
-                                                serialize_model_to_BytesIO)
+                                                load_gradients_from_BytesIO,
+                                                serialize_model_to_BytesIO,
+                                                serialize_grads_to_BytesIO)
 from fedn.utils.helpers.helpers import get_helper
 
 
@@ -70,7 +72,15 @@ class RoundHandler:
         model_str = self.load_model_update_str(model_id)
         if model_str:
             try:
-                model = load_model_from_BytesIO(model_str.getbuffer(), helper)
+                # [FEDVFL REMARK]
+                # [FEDVFL] TODO: Check if we are performing VFL or HFL based on aggregator name and use the corresponding BytesIO loader
+                # if self.name == "fedvfl":
+                    # using 'model' vvariable to store gradients and
+                    # keep code structure consistent with the rest of the code
+                # model = load_gradients_from_BytesIO(model_str.getbuffer(), helper)
+                    # model = load_model_from_BytesIO(model_str.getbuffer(), helper)
+                # else:
+                    model = load_model_from_BytesIO(model_str.getbuffer(), helper)
             except IOError:
                 logger.warning(
                     "AGGREGATOR({}): Failed to load model!".format(self.name))
@@ -288,6 +298,83 @@ class RoundHandler:
             self.server.max_clients, type="validators")
         self._validation_round(round_config, validators, model_id)
 
+    def _vfl_validation_round(self, config, clients, model_id):
+        """[FEDVFL] Send model validation requests to clients.
+
+        :param config: The round config object (passed to the client).
+        :type config: dict
+        :param clients: clients to send validation requests to
+        :type clients: list
+        :param validation_results: Dictionary of validation results
+        :type validation_results: dict
+        """
+        logger.info(
+            "ROUNDHANDLER: Initiating validation round, participating clients: {}".format(clients))
+        
+        
+        meta = {}
+        meta['nr_expected_updates'] = len(clients)
+        meta['nr_required_updates'] = int(config['clients_required'])
+        meta['timeout'] = float(config['round_timeout'])
+
+        # Request model updates from all active clients.
+        self.server.request_model_validation(model_id, config, clients)
+
+        # If buffer_size is -1 (default), the round terminates when/if all clients have completed.
+        if int(config['buffer_size']) == -1:
+            buffer_size = len(clients)
+        else:
+            buffer_size = int(config['buffer_size'])
+
+        # Wait / block until the round termination policy has been met.
+        self.waitforit(config, buffer_size=buffer_size)
+
+        tic = time.time()
+        model = None
+        data = None
+
+        try:
+            helper = get_helper(config['helper_type'])
+            logger.info("Config delete_models_storage: {}".format(config['delete_models_storage']))
+            if config['delete_models_storage'] == 'True':
+                delete_models = True
+            else:
+                delete_models = False
+            validation_results, data = self.aggregator.validate_models(helper=helper,
+                                                         delete_models=delete_models)
+        except Exception as e:
+            logger.warning("AGGREGATION FAILED AT COMBINER! {}".format(e))
+
+        meta['time_combination'] = time.time() - tic
+        meta['aggregation_time'] = data
+        return validation_results, meta
+
+    def execute_vfl_validation_round(self, round_config):
+        """ [FEDVFL] Coordinate VFL validation rounds as specified in config.
+            This includes retrieving client embeddings on test data, then sending them to the combiner
+            for prediction and calculating validation metrics.
+
+        :param round_config: The round config object.
+        :type round_config: dict
+        """
+        model_id = round_config['model_id']
+        logger.info(
+            "COMBINER orchestrating validation of model {}".format(model_id))
+        self.stage_model(model_id)
+        validators = self._assign_round_clients(
+            self.server.max_clients, type="validators")
+        validation_results, _ = self._vfl_validation_round(round_config, validators, model_id)
+
+        if validation_results is None:
+            logger.warning(
+                "\t Failed to validate model in round {0}!".format(round_config['round_id']))
+        
+        if validation_results is not None:
+            # Log the validation results
+            logger.info("Validation results: {}".format(validation_results))
+            logger.info(
+                "VALIDATION ROUND COMPLETED. Model id: {}".format(model_id))
+
     def execute_training_round(self, config):
         """ Coordinates clients to execute training tasks.
 
@@ -316,7 +403,11 @@ class RoundHandler:
 
         if model is not None:
             helper = get_helper(config['helper_type'])
-            a = serialize_model_to_BytesIO(model, helper)
+            # [FEDVFL] TODO: Check if we are performing VFL or HFL based on aggregator name and use the corresponding BytesIO serliazer
+            # if self.name == "fedvfl":
+            a = serialize_grads_to_BytesIO(model, helper)
+            # else:
+                # a = serialize_model_to_BytesIO(model, helper)
             model_id = self.storage.set_model(a.read(), is_file=False)
             a.close()
             data['model_id'] = model_id
@@ -353,7 +444,7 @@ class RoundHandler:
                             round_meta['name'] = self.server.id
                             self.server.statestore.set_round_combiner_data(round_meta)
                         elif round_config['task'] == 'validation' or round_config['task'] == 'inference':
-                            self.execute_validation_round(round_config)
+                            self.execute_vfl_validation_round(round_config)
                         else:
                             logger.warning("config contains unkown task type.")
                     else:

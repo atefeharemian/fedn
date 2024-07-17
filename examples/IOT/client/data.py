@@ -73,10 +73,10 @@ def load_data(data_path, is_train=True):
     :rtype: tuple
     """
     if data_path is None:
-        data = torch.load(_get_data_path())
-    else:
-        data = torch.load(data_path)
+        data_path = os.environ.get("FEDN_DATA_PATH", abs_path+'/data/clients/1/IOT_normal_base.pt')
 
+    data = torch.load(data_path)
+    
     if is_train:
         X = data["x_train"]
         # y = data["y_train"]
@@ -216,8 +216,8 @@ def split(out_dir="data", n_splits=2):
         )
         torch.save(
             {
-                "y_train": data["y_train"][0],
-                "y_test": data["y_test"][0],
+                "y_train": data["y_train"],
+                "y_test": data["y_test"],
             },
             f"{labels_dir}/IOT_normal_base_labels.pt",
         )

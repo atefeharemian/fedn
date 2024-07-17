@@ -1,0 +1,11 @@
+@startuml
+class ModelService {
+    exist()
+    get_model()
+    set_model()
+    Upload()
+    Download()
+        temp_model_storage
+    __init__()
+}
+@enduml

@@ -1,0 +1,18 @@
+@startuml
+class Aggregator {
+    combine_models()
+    on_model_update()
+    on_model_validation()
+    _validate_model_update()
+    next_model_update()
+        name
+    storage
+    id
+    server
+    modelservice
+    control
+    model_updates
+    __init__()
+}
+ABC <|-- Aggregator
+@enduml

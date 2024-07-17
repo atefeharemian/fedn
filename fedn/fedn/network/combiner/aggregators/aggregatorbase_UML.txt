@@ -1,0 +1,19 @@
+@startuml
+class AggregatorBase {
+    combine_models()
+    on_model_update()
+    _validate_model_update()
+    next_model_update()
+    load_model_update()
+    get_state()
+    get_aggregator()
+        name
+    storage
+    server
+    modelservice
+    round_handler
+    model_updates
+    __init__()
+}
+ABC <|-- AggregatorBase
+@enduml

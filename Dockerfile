@@ -13,6 +13,7 @@ COPY config/settings-client.yaml.template /app/config/settings-client.yaml
 COPY config/settings-combiner.yaml.template /app/config/settings-combiner.yaml
 COPY config/settings-reducer.yaml.template /app/config/settings-reducer.yaml
 COPY $REQUIREMENTS /app/config/requirements.txt
+COPY examples/IOT/requirements.txt /app/config/requirements.txt
 
 # Install developer tools (needed for psutil)
 RUN apt-get update && apt-get install -y python3-dev gcc
@@ -47,6 +48,13 @@ RUN mkdir -p /app \
   # Clean up
   && rm -r /app/config/requirements.txt
 
+# add the virtual environment to PATH
+SHELL ["/bin/bash", "-c"]
+ENV VIRTUAL_ENV=/venv
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
 # Setup working directory
 WORKDIR /app
-ENTRYPOINT [ "/venv/bin/fedn" ]
+# ENTRYPOINT [ "/venv/bin/fedn" ]
+# Set the entrypoint to activate the virtual environment and run /venv/bin/fedn
+ENTRYPOINT ["/bin/bash", "-c", "source /venv/bin/activate && /venv/bin/fedn"]

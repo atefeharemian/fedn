@@ -1,5 +1,5 @@
 # Compose schema version
-version: '3.4'
+# version: '3.4'
 
 # Setup network
 networks:
@@ -87,6 +87,7 @@ services:
     environment:
       - PYTHONUNBUFFERED=0
       - GET_HOSTS_FROM=dns
+      # - REQUIREMENTS="/home/ubuntu/volume/fedn/examples/IOT/requirements.txt"
     build:
       context: .
       args:
@@ -95,7 +96,7 @@ services:
     working_dir: /app
     volumes:
       - ${HOST_REPO_DIR:-.}/fedn:/app/fedn
-      - ${HOST_REPO_DIR:-.}/vfl_data/combiner:/app/data
+      - ${HOST_REPO_DIR:-.}/vfl_data/combiner:/app/data # data folder containing dataset labels and later used for storing client gradients
     entrypoint: [ "sh", "-c" ]
     command:
       - "/venv/bin/pip install --no-cache-dir -e /app/fedn && /venv/bin/fedn run combiner --init config/settings-combiner.yaml"
@@ -116,6 +117,7 @@ services:
 
   # Client
   client:
+    image: fedn-client:0.9.2 # set base image for all clients to avoid re-building similar images for each client.
     environment:
       - GET_HOSTS_FROM=dns
       - FEDN_PACKAGE_EXTRACT_DIR=package

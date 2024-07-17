@@ -567,7 +567,7 @@ class APIClient:
             round_timeout: int = 180,
             rounds: int = 5,
             round_buffer_size: int = -1,
-            delete_models: bool = True,
+            delete_models: bool = False,
             validate: bool = True, helper: str = 'numpyhelper', min_clients: int = 1, requested_clients: int = 8
     ):
         """ Start a new session.

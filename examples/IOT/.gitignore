@@ -4,3 +4,5 @@ data
 *.tar.gz
 .mnist-pytorch
 client.yaml
+setup-client-vm*
+.IOTH*

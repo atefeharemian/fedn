@@ -27,16 +27,17 @@ CLIENT_ID = None
 # Set the seed for generating random numbers to ensure reproducibility
 def seed_worker(worker_id):
     worker_seed = torch.initial_seed() % 2**32
-    numpy.random.seed(worker_seed)
-    random.seed(worker_seed)
+    np.random.seed(worker_seed)
+    math.random.seed(worker_seed)
 
 def train(
     in_model_path,
     out_model_path,
     data_path=None,
     batch_size=256,
-    epochs=50,
+    epochs=1,
     lr=0.001,
+    local_model_path="/app/client/model/local_model.pt",
 ):
     """Complete a model update.
 
@@ -93,7 +94,7 @@ def train(
         for b, (batch_x,) in enumerate(train_loader):  # batch loop
             # Calculate embeddings and send to combiner
             embeddings = model(batch_x)
-            batch_embeddings.append(embeddings.detach().numpy())
+            batch_embeddings.append(embeddings.detach().numpy()) # TODO: once gradients are calculated by combiner, perform backprop at the beginning of validation phase.
             # gradients = process_embeddings_by_combiner(embeddings)
             # the corresponding gradients for this client based on CLIENT_ID
             # gradients = gradients[CLIENT_ID]
@@ -125,16 +126,11 @@ def train(
 
     # Save embeddings for this client (mandatory)
     save_embeddings(all_batch_embeddings, out_model_path)
+
+    # save the model locally
+    torch.save(model, local_model_path)
+
     logger.info("Model training completed.")
-
-def process_embeddings_by_combiner(embeddings):
-    """Process embeddings by combiner.
-
-    :param embeddings: The embeddings to process.
-    :type embeddings: torch.Tensor
-    """
-    pass
-
 
 if __name__ == "__main__":
     train(sys.argv[1], sys.argv[2])

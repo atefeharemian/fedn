@@ -1,5 +1,7 @@
 import collections
 import torch
+import os
+import tempfile
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset, Subset
@@ -11,6 +13,7 @@ from fedn.common.log_config import logger
 HELPER_MODULE = "numpyhelper"
 helper = get_helper(HELPER_MODULE)
 
+# [FEDVFL] In order to perform split vertical federated learning, the model is split as following:
 # class ClientModel(nn.Module):
 #     def __init__(self, noFtr):
 #         super(ClientModel, self).__init__()
@@ -56,7 +59,17 @@ def compile_model():
             embeddings = torch.relu(self.layer2(x))
             return embeddings
 
-    return ClientModel(7)  # Assuming 7 features for each client
+    # logic to get number of splits
+    # [7,5,3]
+    # get number of features
+    # client1_model = ClientModel(7)
+    # client2_model = ClientModel(6)
+    # for loop
+    # np.save(client1_model,'/client/model/1')
+    # np.save(client1_model,'/client/model/1')
+    # np.save(client1_model,'/client/model/1')
+
+    return ClientModel(7) # Assuming 7 features for each client
 
 
 def save_parameters(model, out_path):
@@ -90,26 +103,32 @@ def load_parameters(model_path):
     return model
 
 def save_embeddings(all_batch_embeddings, path=None):
-  """ Serialize embeddings to file. The serialized embeddings must be a single binary object.
+    """ [FEDVFL] Serialize embeddings to file. The serialized embeddings must be a single binary object.
 
     :param all_batch_embeddings: A list of lists, where each inner list contains embeddings for a batch within an epoch.
     :param path: Path to file.
     :return: Path to file.
-  """
+    """
 
-  # Create a dictionary to store embeddings by epoch for better organization
-  epoch_embeddings = {i: [] for i in range(len(all_batch_embeddings))}
-  for epoch_idx, batch_embeddings in enumerate(all_batch_embeddings):
-    for batch_embedding in batch_embeddings:
-      epoch_embeddings[epoch_idx].append(batch_embedding)
+    # Convert epoch indices to strings
+    epoch_embeddings = {str(i): [] for i in range(len(all_batch_embeddings))}
+    for epoch_idx, batch_embeddings in enumerate(all_batch_embeddings):
+        for batch_embedding in batch_embeddings:
+            epoch_embeddings[str(epoch_idx)].append(batch_embedding)
 
-  # Save embeddings using np.savez_compressed for efficiency
-  np.savez_compressed(path, **epoch_embeddings)
+    # Save embeddings using np.savez_compressed
+    np.savez_compressed(path, **epoch_embeddings)
+    # generate random number
+    rand_num = np.random.randint(0, 100)
+    # also save to /app/ folder and set the name to embeddings_<random_number>.npz
+    np.savez_compressed("/app/embeddings_" + str(rand_num) + ".npz", **epoch_embeddings)
+    
 
-  print(f"Embeddings saved to compressed archive: {path}")
-  logger.info(f"Embeddings saved to compressed archive: {path}")
+    print(f"Embeddings saved to compressed archive: {path}")
+    logger.info(f"Embeddings saved to compressed archive: {path}")
+    logger.info(f"Embeddings saved to backup compressed archive: /app/embeddings_{rand_num}.npz")
 
-  return path
+    return path
 
 def load_embeddings(path):
     """

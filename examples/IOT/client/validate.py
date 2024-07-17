@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 
 import math
@@ -10,7 +11,10 @@ import numpy as np
 
 from fedn.utils.helpers.helpers import get_helper, save_metadata, save_metrics
 from data import load_data
-from model import load_parameters
+from model import load_parameters, save_parameters, save_embeddings, load_embeddings
+
+from fedn.common.log_config import logger
+
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(os.path.abspath(dir_path))
@@ -81,6 +85,56 @@ def validate(in_model_path, out_json_path, data_path=None):
     # Save JSON
     save_metrics(report, out_json_path)
 
+def validate_vfl(in_model_path, out_json_path, data_path=None, local_model_path="/app/client/model/local_model.pt", batch_size=256):
+    """ Validate model for VFL. based on train.py"""
+
+    # Set the seed for generating random numbers
+    torch.manual_seed(0)
+
+    # Load data
+    x_test = load_data(data_path, is_train=False)
+
+    # Load parameters and initialize model
+    gradients = load_parameters(in_model_path)
+    # perform backprop on local model using gradients before starting validation
+
+    # Getting Client ID
+    fedn_data_path = os.getenv('FEDN_DATA_PATH')
+    match = re.search(r'/clients/(\d+)/', fedn_data_path)
+    client_id = match.group(1)
+
+    # the corresponding gradients for this client based on client_id
+    gradients = gradients[client_id]
+
+    # Load local model
+    model = torch.load(local_model_path)
+
+    #Update model parameters with the gradients received from the combiner
+    for param in model.parameters():
+        param.grad = gradients[param.shape]  # Assuming the gradients are stored in the same shape as the parameters
+    # access the gradients for the current client using the client_id and perform backprop using Adam optimizer
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    optimizer.zero_grad()
+    optimizer.step()
+
+    # client training -> embeddings -> combiner takes embeddings -> combiner performs perdiction 
+    # -> compbiner saves gradients -> start validation/model_update -> client validation -> embeddings -> final validation by combiner
+    
+
+    ############ Validation logic
+    dataset_size = len(x_test)
+    model.eval()
+
+    # Evaluate
+    with torch.no_grad():
+        test_embeddings = model(x_test)
+
+    # Save embeddings for this client (mandatory)
+    save_embeddings(test_embeddings, out_json_path)
+    logger.info("Model training completed.")
+
+    # Save JSON
+    # save_metrics(report, out_json_path)
 
 # Custom metrics
 def precision_recall_f1(y_true, y_pred, average="macro"):
@@ -100,4 +154,4 @@ def precision_recall_f1(y_true, y_pred, average="macro"):
 
 
 if __name__ == "__main__":
-    validate(sys.argv[1], sys.argv[2])
+    validate_vfl(sys.argv[1], sys.argv[2])

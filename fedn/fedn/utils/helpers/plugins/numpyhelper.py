@@ -3,6 +3,9 @@ import numpy as np
 
 from fedn.utils.helpers.helperbase import HelperBase
 
+# FEDVFL imports
+import json
+import struct
 
 class Helper(HelperBase):
     """ FEDn helper class for models weights/parameters that can be transformed to numpy ndarrays. """
@@ -159,9 +162,54 @@ class Helper(HelperBase):
         :param fh: file path, filehandle, filelike.
         :return: List of weights in numpy format.
         """
-        a = np.load(fh)
+        a = np.load(fh, allow_pickle=True) # [FEDVFL] allow_pickle=True is needed for FEDVFL to work
 
         weights = []
         for i in range(len(a.files)):
             weights.append(a[str(i)])
         return weights
+
+    #### FEDVFL ####
+
+    def save_grads(self, client_grads, path=None):
+        """
+        [FEDVFL] Serialize client gradients to a single binary file.
+
+        :param client_grads: Dictionary of client gradients.
+        :param path: Path to save the file. If None, a temporary path will be used.
+        :return: Path to the saved file.
+        """
+        if not path:
+            path = self.get_tmp_path()
+
+        with open(path, 'wb') as f:
+            # Save the structure of the dictionary
+            structure = {k: v.shape for k, v in client_grads.items()}
+            structure_bytes = json.dumps(structure).encode('utf-8')
+            f.write(struct.pack('!I', len(structure_bytes)))
+            f.write(structure_bytes)
+
+            # Save each numpy array
+            for k, v in client_grads.items():
+                np.save(f, v)
+
+        return path
+
+    def load_grads(self, path):
+        """
+        [FEDVFL] Deserialize client gradients from a file.
+
+        :param path: Path to the file containing serialized gradients.
+        :return: Dictionary of client gradients.
+        """
+        with open(path, 'rb') as f:
+            # Load the structure
+            structure_length = struct.unpack('!I', f.read(4))[0]
+            structure = json.loads(f.read(structure_length).decode('utf-8'))
+
+            # Load the numpy array
+            client_grads = {}
+            for k, v in structure.items():
+                client_grads[k] = np.load(f)
+
+        return client_grads

@@ -70,9 +70,26 @@ def load_model_from_BytesIO(model_bytesio, helper):
     os.unlink(path)
     return model
 
+def load_gradients_from_BytesIO(gradients_bytesio, helper):
+    """ [FEDVFL] Load client gradients from a BytesIO object.
+    :param gradients_bytesio: A BytesIO object containing the gradients.
+    :type gradients_bytesio: :class:`io.BytesIO`
+    :param helper: The helper object for the gradients.
+    :type helper: :class:`fedn.utils.helperbase.HelperBase`
+    :return: The gradients object.
+    :rtype: return type of helper.load
+    """
+    path = get_tmp_path()
+    with open(path, 'wb') as fh:
+        fh.write(gradients_bytesio)
+        fh.flush()
+    gradients = helper.load_grads(path)
+    os.unlink(path)
+    return gradients
+
 
 def serialize_model_to_BytesIO(model, helper):
-    """ Serialize a model to a BytesIO object.
+    """ [FEDVFL] Serialize a model to a BytesIO object.
 
     :param model: The model object.
     :type model: return type of helper.load
@@ -82,6 +99,26 @@ def serialize_model_to_BytesIO(model, helper):
     :rtype: :class:`io.BytesIO`
     """
     outfile_name = helper.save(model)
+
+    a = BytesIO()
+    a.seek(0, 0)
+    with open(outfile_name, 'rb') as f:
+        a.write(f.read())
+    a.seek(0)
+    os.unlink(outfile_name)
+    return a
+
+def serialize_grads_to_BytesIO(gradients, helper):
+    """ [FEDVFL] Serialize client gradients to a BytesIO object.
+
+    :param gradients: The gradients object.
+    :type gradients: return type of helper.load_grads
+    :param helper: The helper object for the gradients.
+    :type helper: :class:`fedn.utils.helperbase.HelperBase`
+    :return: A BytesIO object containing the gradients.
+    :rtype: :class:`io.BytesIO`
+    """
+    outfile_name = helper.save_grads(gradients)
 
     a = BytesIO()
     a.seek(0, 0)

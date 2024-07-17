@@ -578,7 +578,7 @@ def get_parameters(id: str):
                 file_bytes.write(chunk)
             file_bytes.seek(0)  # Reset the pointer to the beginning of the byte array
 
-            a = np.load(file_bytes)
+            a = np.load(file_bytes, allow_pickle=True) # [FEDVFL] added allow_pickle=True to load numpy arrays
 
             weights = []
             for i in range(len(a.files)):
