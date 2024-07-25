@@ -78,9 +78,9 @@ class RoundHandler:
                     # using 'model' vvariable to store gradients and
                     # keep code structure consistent with the rest of the code
                 # model = load_gradients_from_BytesIO(model_str.getbuffer(), helper)
-                    # model = load_model_from_BytesIO(model_str.getbuffer(), helper)
+                model = load_model_from_BytesIO(model_str.getbuffer(), helper)
                 # else:
-                    model = load_model_from_BytesIO(model_str.getbuffer(), helper)
+                    # model = load_model_from_BytesIO(model_str.getbuffer(), helper)
             except IOError:
                 logger.warning(
                     "AGGREGATOR({}): Failed to load model!".format(self.name))
@@ -199,7 +199,7 @@ class RoundHandler:
         :param clients: clients to send validation requests to
         :type clients: list
         :param model_id: The ID of the model to validate
-        :type model_id: str
+        :type model_id: strload_gradients_from_BytesIO
         """
         self.server.request_model_validation(model_id, config, clients)
 

@@ -83,7 +83,7 @@ def load_gradients_from_BytesIO(gradients_bytesio, helper):
     with open(path, 'wb') as fh:
         fh.write(gradients_bytesio)
         fh.flush()
-    gradients = helper.load_grads(path)
+    gradients = helper.load(path)
     os.unlink(path)
     return gradients
 

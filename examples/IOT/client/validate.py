@@ -107,7 +107,8 @@ def validate_vfl(in_model_path, out_json_path, data_path=None, local_model_path=
     gradients = gradients[client_id]
 
     # Load local model
-    model = torch.load(local_model_path)
+    # model = torch.load(local_model_path)
+    model = load_parameters(local_model_path)
 
     #Update model parameters with the gradients received from the combiner
     for param in model.parameters():

@@ -37,7 +37,7 @@ def train(
     batch_size=256,
     epochs=1,
     lr=0.001,
-    local_model_path="/app/client/model/local_model.pt",
+    local_model_path="/app/client/model/local_model.npz",
 ):
     """Complete a model update.
 
@@ -128,7 +128,8 @@ def train(
     save_embeddings(all_batch_embeddings, out_model_path)
 
     # save the model locally
-    torch.save(model, local_model_path)
+    # torch.save(model, local_model_path)
+    save_parameters(model, local_model_path)
 
     logger.info("Model training completed.")
 

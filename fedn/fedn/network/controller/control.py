@@ -8,7 +8,7 @@ from tenacity import (retry, retry_if_exception_type, stop_after_delay,
 
 from fedn.common.log_config import logger
 from fedn.network.combiner.interfaces import CombinerUnavailableError
-from fedn.network.combiner.modelservice import load_model_from_BytesIO
+from fedn.network.combiner.modelservice import load_model_from_BytesIO, load_gradients_from_BytesIO
 from fedn.network.controller.controlbase import ControlBase
 from fedn.network.state import ReducerState
 
@@ -309,14 +309,16 @@ class Control(ControlBase):
                 try:
                     tic = time.time()
                     helper = self.get_helper()
-                    model_next = load_model_from_BytesIO(data, helper)
+                    # model_next = load_model_from_BytesIO(data, helper)
+                    model_next = load_gradients_from_BytesIO(data, helper)
                     meta["time_load_model"] += time.time() - tic
                     tic = time.time()
-                    model = helper.increment_average(model, model_next, 1.0, i) # [FEDVFL] TODO: revise for VFL
+                    # model = helper.increment_average(model, model_next, 1.0, i) # [FEDVFL] TODO: revise for VFL
+                    model = model_next
                     meta["time_aggregate_model"] += time.time() - tic
                 except Exception:
                     tic = time.time()
-                    model = load_model_from_BytesIO(data, helper)
+                    model = load_gradients_from_BytesIO(data, helper)
                     meta["time_aggregate_model"] += time.time() - tic
                 i = i + 1
 
