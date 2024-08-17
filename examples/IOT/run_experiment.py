@@ -22,7 +22,7 @@ session_config_fedavg = {
     "aggregator": "fedavg",
     "model_id": seed_model["model_id"],
     "rounds": 2,
-    "round_timeout": 1800,
+    "round_timeout": 40000,
 }
 
 # result_fedavg = client.start_session(**session_config_fedavg)
